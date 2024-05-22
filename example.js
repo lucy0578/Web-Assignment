@@ -1,11 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
     const quizContainer = document.getElementById('quiz-container');
-    let currentQuestion = 0;
-    let score = 0;
-    let timeLeft = 20000;
-    let timer;
-    let totalTime = 0;
-
     const questions = [
         {
             question: "1. What is web technology?",
@@ -93,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 { text: "a) To create graphical buttons or links to other pages", correct: true },
                 { text: "b) To help the webpage load efficientl;", correct: false },
                 { text: "c) Webpage cannot run/be displayed without at least one image", correct: false },
-                { text: "d) Because webpage doesn't support pure text", correct: false }
+                { text: "d) Because webpage doesn’t support pure text", correct: false }
             ],
             explanation: "Images are also used for better presentation of webpage. Any image can be turned into a link. Rather than putting text between the opening < a > tag and the closing < /a > tag, you simply place an image inside these tags."
         },
@@ -109,26 +103,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     ];
 
-    function handleChoice(event) {
-        totalTime += (20000 - timeLeft);
+    let currentQuestion = 0;
+    let score = 0;
+    let timeLeft = 20;
+    let timer;
 
+    function handleChoice(event) {
         const choiceIndex = parseInt(event.target.getAttribute('data-index'));
         const choice = questions[currentQuestion].choices[choiceIndex];
         const correct = choice.correct;
-        const correctChoice = questions[currentQuestion].choices.find(choice => choice.correct);
         const explanation = questions[currentQuestion].explanation;
 
         if (correct) {
             quizContainer.innerHTML = `
                 <h3>Your answer is correct!</h3>
-                <p>Answer: ${correctChoice.text}</p>
+                <p>Answer: ${choice.text}</p>
                 <p>Explanation: ${explanation}</p>
             `;
             score++;
         } else {
             quizContainer.innerHTML = `
                 <h3>Your answer is incorrect!</h3>
-                <p>Answer: ${correctChoice.text}</p>
+                <p>Answer: ${choice.text}</p>
                 <p>Explanation: ${explanation}</p>
             `;
         }
@@ -147,8 +143,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleTimeout() {
-        totalTime += 20000;
-
         const correctChoice = questions[currentQuestion].choices.find(choice => choice.correct);
         const explanation = questions[currentQuestion].explanation;
 
@@ -167,6 +161,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             showFinalScore();
         }
+        
+        handleChoice({ target: { getAttribute: () => correctChoice.correct ? 0 : 1 } });
     }
 
     function loadQuestion() {
@@ -178,35 +174,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button class="choice" data-index="${i}">${choice.text}</button>
                 </div>
             `).join('')}
-            <div id="div">Time to answer: ${timeLeft / 1000} seconds</div>
+            <div id="div">Time to answer: ${timeLeft} seconds</div>
         `;
-        
-        // 更新倒计时器的显示
-        const timeDisplay = document.getElementById('div');
-        timeDisplay.innerHTML = 'Time to answer: ' + timeLeft / 1000 + ' seconds';
-
         document.querySelectorAll('.choice').forEach(button => {
             button.addEventListener('click', handleChoice);
         });
 
-        timeLeft = 20000; // 重置倒计时器
+        timeLeft = 20; // 重置倒计时器
 
-        clearInterval(timer); // 清除旧的定时器
-
-        timer = setInterval(function(){
+        var timer = setInterval(function(){
             const timeDisplay = document.getElementById('div');
             if(timeLeft == 0 || timeLeft < 0){
+                timeDisplay.innerHTML = 'Time Out!';
                 handleTimeout(); // 时间耗尽时调用超时处理函数
                 clearInterval(timer);
-            } else if (timeLeft > 1000){
-                timeDisplay.innerHTML = 'Time to answer: ' + (timeLeft / 1000).toFixed(1) + ' seconds';
+                return;
+            } else if (timeLeft > 1){
+                timeDisplay.innerHTML = 'Time to answer: ' + timeLeft + ' seconds';
             } else {
-                timeDisplay.innerHTML = 'Time to answer: ' + (timeLeft / 1000).toFixed(1) + ' second';
+                timeDisplay.innerHTML = 'Time to answer: ' + timeLeft + ' second';
             }
-            timeLeft -= 100;
-        },100);
+            timeLeft --;
+        },1000);
     }
-
 
 
 
@@ -214,7 +204,6 @@ document.addEventListener('DOMContentLoaded', () => {
         quizContainer.innerHTML = `
             <h3>You completed all the questions!</h3>
             <h3>You got ${score} right out of ${questions.length}.</h3>
-            <p>Total time used: ${(totalTime / 1000).toFixed(1)} seconds</p>
         `;
 
         document.getElementById('view-score').addEventListener('click', () => {
