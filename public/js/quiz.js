@@ -1,5 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
     const quizContainer = document.getElementById('quiz-container');
+    const leaderboardElement = document.getElementById('leaderboard');
+    let currentQuestion = 0;
+    let score = 0;
+    let timeLeft = 20000;
+    let timer;
+    let totalTime = 0;
+    let userName = '';
+
     const questions = [
         {
             question: "1. What is web technology?",
@@ -85,9 +93,9 @@ document.addEventListener('DOMContentLoaded', () => {
             question: "9. Why are Images often used on the webpage?",
             choices: [
                 { text: "a) To create graphical buttons or links to other pages", correct: true },
-                { text: "b) To help the webpage load efficientl;", correct: false },
+                { text: "b) To help the webpage load efficiently", correct: false },
                 { text: "c) Webpage cannot run/be displayed without at least one image", correct: false },
-                { text: "d) Because webpage doesn’t support pure text", correct: false }
+                { text: "d) Because webpage doesn't support pure text", correct: false }
             ],
             explanation: "Images are also used for better presentation of webpage. Any image can be turned into a link. Rather than putting text between the opening < a > tag and the closing < /a > tag, you simply place an image inside these tags."
         },
@@ -103,28 +111,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     ];
 
-    let currentQuestion = 0;
-    let score = 0;
-    let timeLeft = 20;
-    let timer;
-
     function handleChoice(event) {
+        totalTime += (20000 - timeLeft) / 1000;
+
         const choiceIndex = parseInt(event.target.getAttribute('data-index'));
         const choice = questions[currentQuestion].choices[choiceIndex];
         const correct = choice.correct;
+        const correctChoice = questions[currentQuestion].choices.find(choice => choice.correct);
         const explanation = questions[currentQuestion].explanation;
 
         if (correct) {
             quizContainer.innerHTML = `
                 <h3>Your answer is correct!</h3>
-                <p>Answer: ${choice.text}</p>
+                <p>Answer: ${correctChoice.text}</p>
                 <p>Explanation: ${explanation}</p>
             `;
             score++;
         } else {
             quizContainer.innerHTML = `
                 <h3>Your answer is incorrect!</h3>
-                <p>Answer: ${choice.text}</p>
+                <p>Answer: ${correctChoice.text}</p>
                 <p>Explanation: ${explanation}</p>
             `;
         }
@@ -143,14 +149,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleTimeout() {
+        totalTime += 20000 / 1000;
+
         const correctChoice = questions[currentQuestion].choices.find(choice => choice.correct);
         const explanation = questions[currentQuestion].explanation;
 
         quizContainer.innerHTML = `
             <h3>Time's up!</h3>
             <p>The correct answer is: ${correctChoice.text}</p>
-            <p>Explanation: ${explanation}</p>
-        `;
+            <p>Explanation: ${explanation}</p
+                    `;
 
         if (currentQuestion < questions.length - 1) {
             quizContainer.innerHTML += `<button id="next_question">Next Question</button>`;
@@ -161,8 +169,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             showFinalScore();
         }
-        
-        handleChoice({ target: { getAttribute: () => correctChoice.correct ? 0 : 1 } });
     }
 
     function loadQuestion() {
@@ -174,45 +180,76 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button class="choice" data-index="${i}">${choice.text}</button>
                 </div>
             `).join('')}
-            <div id="div">Time to answer: ${timeLeft} seconds</div>
+            <div id="time-display">Time to answer: ${Math.ceil(timeLeft / 1000)} seconds</div>
         `;
+
         document.querySelectorAll('.choice').forEach(button => {
             button.addEventListener('click', handleChoice);
         });
 
-        timeLeft = 20; // 重置倒计时器
+        timeLeft = 20000; // 重置倒计时器
 
-        var timer = setInterval(function(){
-            const timeDisplay = document.getElementById('div');
-            if(timeLeft == 0 || timeLeft < 0){
-                timeDisplay.innerHTML = 'Time Out!';
+        clearInterval(timer); // 清除旧的定时器
+
+        timer = setInterval(function(){
+            const timeDisplay = document.getElementById('time-display');
+            if(timeLeft <= 0){
                 handleTimeout(); // 时间耗尽时调用超时处理函数
                 clearInterval(timer);
-                return;
-            } else if (timeLeft > 1){
-                timeDisplay.innerHTML = 'Time to answer: ' + timeLeft + ' seconds';
             } else {
-                timeDisplay.innerHTML = 'Time to answer: ' + timeLeft + ' second';
+                timeDisplay.innerHTML = 'Time to answer: ' + Math.ceil(timeLeft / 1000) + ' s';
             }
-            timeLeft --;
-        },1000);
+            timeLeft -= 10;
+        },10);
     }
-
 
 
     function showFinalScore() {
-        quizContainer.innerHTML = `
-            <h3>You completed all the questions!</h3>
-            <h3>You got ${score} right out of ${questions.length}.</h3>
-        `;
+        const userScore = {
+            username: userName,
+            score: score,
+            totalTime: totalTime
+        };
 
-        document.getElementById('view-score').addEventListener('click', () => {
-            alert(`Your final score is: ${score}/${questions.length}`);
+        fetch('/leaderboard', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(userScore)
+        })
+        .then(response => response.json())
+        .then(data => {
+            const leaderboard = data.leaderboard;
+            const leaderboardHTML = leaderboard.map((entry, index) => `
+                <p>${index + 1}. ${entry.username}: ${entry.score} correct answers (${entry.totalTime} seconds)</p>
+            `).join('');
+            
+            const finalScoreHTML = `
+                <h3>You completed all the questions!</h3>
+                <h3>You got ${score} right out of ${questions.length}.</h3>
+                <p>Total time used: ${(totalTime).toFixed(2)} seconds</p>
+                <h3>Leaderboard:</h3>
+                ${leaderboardHTML}
+            `;
+
+            quizContainer.innerHTML = finalScoreHTML;
+        })
+        .catch(error => {
+            console.error('Error fetching leaderboard:', error);
+            const finalScoreHTML = `
+                <h3>You completed all the questions!</h3>
+                <h3>You got ${score} right out of ${questions.length}.</h3>
+                <p>Total time used: ${totalTime.toFixed(2)} seconds</p>
+                <p>Failed to load leaderboard. Please try again later.</p>
+            `;
+            quizContainer.innerHTML = finalScoreHTML;
         });
     }
 
+
     function startQuiz() {
-        const userName = document.getElementById('username').value;
+        userName = document.getElementById('username').value;
         if (userName.trim() !== '') {
             quizContainer.innerHTML = `<p>Welcome to the quiz, ${userName}! Let's start!</p>`;
             setTimeout(loadQuestion, 3000);
