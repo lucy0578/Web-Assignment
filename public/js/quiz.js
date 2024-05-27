@@ -122,16 +122,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (correct) {
             quizContainer.innerHTML = `
-                <h3>Your answer is correct!</h3>
-                <p>Answer: ${correctChoice.text}</p>
-                <p>Explanation: ${explanation}</p>
+                <div class="question">
+                    <h3>Your answer is correct!</h3>
+                    <p>Answer: ${correctChoice.text}</p>
+                    <p>Explanation: ${explanation}</p>
+                </div>
             `;
             score++;
         } else {
             quizContainer.innerHTML = `
-                <h3>Your answer is incorrect!</h3>
-                <p>Answer: ${correctChoice.text}</p>
-                <p>Explanation: ${explanation}</p>
+                <div class="question">
+                    <h3>Your answer is incorrect!</h3>
+                    <p>Answer: ${correctChoice.text}</p>
+                    <p>Explanation: ${explanation}</p>
+                </div>
             `;
         }
         if (currentQuestion < questions.length - 1) {
@@ -155,9 +159,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const explanation = questions[currentQuestion].explanation;
 
         quizContainer.innerHTML = `
-            <h3>Time's up!</h3>
-            <p>The correct answer is: ${correctChoice.text}</p>
-            <p>Explanation: ${explanation}</p
+            <div class="question">
+                <h3>Time's up!</h3>
+                <p>The correct answer is: ${correctChoice.text}</p>
+                <p>Explanation: ${explanation}</p>
+            </div>
                     `;
 
         if (currentQuestion < questions.length - 1) {
@@ -174,13 +180,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadQuestion() {
         const q = questions[currentQuestion];
         quizContainer.innerHTML = `
-            <h3>${q.question}</h3>
+            <div class="question">
+                <h3>${q.question}</h3>
+            </div>
             ${q.choices.map((choice, i) => `
                 <div>
                     <button class="choice" data-index="${i}">${choice.text}</button>
                 </div>
             `).join('')}
-            <div id="time-display">Time to answer: ${Math.ceil(timeLeft / 1000)} seconds</div>
+            <div id="time-display">Time to answer: ${Math.ceil(timeLeft / 1000)} s</div>
         `;
 
         document.querySelectorAll('.choice').forEach(button => {
@@ -205,6 +213,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     function showFinalScore() {
+        if (totalTime >= 200) {
+            totalTime = 'Timeout';
+        } else {
+            totalTime = totalTime.toFixed(2);
+        }
+
         const userScore = {
             username: userName,
             score: score,
@@ -220,20 +234,54 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .then(response => response.json())
         .then(data => {
-            const leaderboard = data.leaderboard;
-            const leaderboardHTML = leaderboard.map((entry, index) => `
-                <p>${index + 1}. ${entry.username}: ${entry.score} correct answers (${entry.totalTime} seconds)</p>
-            `).join('');
-            
+            let leaderboard = data.leaderboard;
+
+            // 对 leaderboard 数组进行排序，按照成绩降序排列
+            leaderboard.sort((a, b) => b.score - a.score);
+
+            // 生成表格的 HTML
+            let leaderboardHTML = `
+                <h3>Leaderboard</h3>
+                <table>
+                    <tr>
+                        <th>Username</th>
+                        <th>Score</th>
+                        <th>Total Time (seconds)</th>
+                    </tr>
+            `;
+
+            // 遍历 leaderboard 数组，生成每行数据
+            leaderboard.forEach((entry, index) => {
+                leaderboardHTML += `
+                    <tr>
+                        <td>${entry.username}</td>
+                        <td>${entry.score}</td>
+                        <td>${entry.totalTime}</td>
+                    </tr>
+                `;
+            });
+
+            // 结束表格的 HTML
+            leaderboardHTML += `</table>`;
+
             const finalScoreHTML = `
                 <h3>You completed all the questions!</h3>
-                <h3>You got ${score} right out of ${questions.length}.</h3>
-                <p>Total time used: ${(totalTime).toFixed(2)} seconds</p>
-                <h3>Leaderboard:</h3>
+                <p>You got ${score} right out of ${questions.length}.</p>
+                <p>Total time used: ${totalTime} seconds</p>
                 ${leaderboardHTML}
+                <button id="try-again">Try Again</button>
             `;
 
             quizContainer.innerHTML = finalScoreHTML;
+
+            document.getElementById('try-again').addEventListener('click', () => {
+                quizContainer.innerHTML = `
+                    <h3>Welcome to the quiz! Give your name</h3>
+                    <input type="text" id="username" placeholder="Enter your name">
+                    <button id="start">Start</button>
+                `;
+                document.getElementById('start').addEventListener('click', startQuiz);
+            });
         })
         .catch(error => {
             console.error('Error fetching leaderboard:', error);
@@ -249,6 +297,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     function startQuiz() {
+        currentQuestion = 0; // 重置当前问题的索引
+        score = 0; // 重置分数
+        timeLeft = 20000; // 重置倒计时
+        totalTime = 0; // 重置总时间
         userName = document.getElementById('username').value;
         if (userName.trim() !== '') {
             quizContainer.innerHTML = `<p>Welcome to the quiz, ${userName}! Let's start!</p>`;
