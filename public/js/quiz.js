@@ -1,13 +1,14 @@
 document.addEventListener('DOMContentLoaded', () => {
     const quizContainer = document.getElementById('quiz-container');
     const leaderboardElement = document.getElementById('leaderboard');
-    let currentQuestion = 0;
-    let score = 0;
-    let timeLeft = 20000;
-    let timer;
-    let totalTime = 0;
-    let userName = '';
+    let currentQuestion = 0;  // record the number of answers
+    let score = 0;  // record user's score
+    let timeLeft = 20000;  // set the time for each question to 20 seconds
+    let timer;  // set timer
+    let totalTime = 0;  // initialize the total time to 0s
+    let userName = '';  // set user name
 
+    // the questions of quiz and its multiple choices, explanations and answers
     const questions = [
         {
             question: "1. What is web technology?",
@@ -111,15 +112,64 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     ];
 
+    // load question when user starts or moves to next question
+    function loadQuestion() {
+        // get the current question from questions by index
+        const q = questions[currentQuestion];
+
+        // assign HTML content to quizContainer
+        // set question to <h3> and show
+        // set multiple choices to <p> and show
+        // caculate the rest time and show
+        quizContainer.innerHTML = `
+            <div class="question">
+                <h3>${q.question}</h3>
+            </div>
+            ${q.choices.map((choice, i) => `
+                <div>
+                    <button class="choice" data-index="${i}">${choice.text}</button>
+                </div>
+            `).join('')}
+            <div id="time-display">Time to answer: ${Math.ceil(timeLeft / 1000)} s</div>
+        `;
+
+        // move to next question when user click the button of multiple choice
+        document.querySelectorAll('.choice').forEach(button => {
+            button.addEventListener('click', handleChoice);
+        });
+
+        timeLeft = 20000; // reset timeLeft
+
+        clearInterval(timer); // clean odd timer
+
+        // set interval to caculate the rest time
+        timer = setInterval(function(){
+            const timeDisplay = document.getElementById('time-display');
+
+            // move to time out page when timeLeft turns to 0
+            if(timeLeft <= 0){
+                handleTimeout(); 
+                clearInterval(timer);
+            } else {
+                // show the rest time before timeLeft decreases to 0
+                timeDisplay.innerHTML = 'Time to answer: ' + Math.ceil(timeLeft / 1000) + ' s';
+            }
+            timeLeft -= 10;  // timeLeft subtracts 0.01s every time the function repeats
+        },10);
+    }
+
+    // when no time out
     function handleChoice(event) {
+        // when answered a question, calculate the time taken so far
         totalTime += (20000 - timeLeft) / 1000;
 
-        const choiceIndex = parseInt(event.target.getAttribute('data-index'));
-        const choice = questions[currentQuestion].choices[choiceIndex];
-        const correct = choice.correct;
-        const correctChoice = questions[currentQuestion].choices.find(choice => choice.correct);
-        const explanation = questions[currentQuestion].explanation;
+        const choiceIndex = parseInt(event.target.getAttribute('data-index'));  // get user choice index
+        const choice = questions[currentQuestion].choices[choiceIndex];  // get user choice from index
+        const correct = choice.correct;  // get the result of user choice
+        const correctChoice = questions[currentQuestion].choices.find(choice => choice.correct);  // get the correct choice
+        const explanation = questions[currentQuestion].explanation;  // get the explanation
 
+        // if user's answer is correct
         if (correct) {
             quizContainer.innerHTML = `
                 <div class="question">
@@ -130,6 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             score++;
         } else {
+            // if user's answer is incorrect
             quizContainer.innerHTML = `
                 <div class="question">
                     <h3>Your answer is incorrect!</h3>
@@ -138,21 +189,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
         }
+
+        // if the current question isn't the finnal question
         if (currentQuestion < questions.length - 1) {
+            // add "next button" button
             quizContainer.innerHTML += `<button id="next_question">Next Question</button>`;
+
+            // click the button to move to next question
             document.getElementById('next_question').addEventListener('click', () => {
                 currentQuestion++;
                 loadQuestion();
             });
         } else {
+            // if it is the finnal question
+            // add "view score" button
             quizContainer.innerHTML += `<button id="view-score">View Score</button>`;
+
+            // move to score page
             document.getElementById('view-score').addEventListener('click', () => {
                 showFinalScore();
             });
         }
     }
 
+    // if it is time out
     function handleTimeout() {
+        // calculate the time taken so far
         totalTime += 20000 / 1000;
 
         const correctChoice = questions[currentQuestion].choices.find(choice => choice.correct);
@@ -177,45 +239,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function loadQuestion() {
-        const q = questions[currentQuestion];
-        quizContainer.innerHTML = `
-            <div class="question">
-                <h3>${q.question}</h3>
-            </div>
-            ${q.choices.map((choice, i) => `
-                <div>
-                    <button class="choice" data-index="${i}">${choice.text}</button>
-                </div>
-            `).join('')}
-            <div id="time-display">Time to answer: ${Math.ceil(timeLeft / 1000)} s</div>
-        `;
-
-        document.querySelectorAll('.choice').forEach(button => {
-            button.addEventListener('click', handleChoice);
-        });
-
-        timeLeft = 20000; // 重置倒计时器
-
-        clearInterval(timer); // 清除旧的定时器
-
-        timer = setInterval(function(){
-            const timeDisplay = document.getElementById('time-display');
-            if(timeLeft <= 0){
-                handleTimeout(); // 时间耗尽时调用超时处理函数
-                clearInterval(timer);
-            } else {
-                timeDisplay.innerHTML = 'Time to answer: ' + Math.ceil(timeLeft / 1000) + ' s';
-            }
-            timeLeft -= 10;
-        },10);
-    }
-
-
+    // move to score page and show finnal score and leaderboard
     function showFinalScore() {
         if (totalTime >= 200) {
+            // if the user timed out to answer all questions
             totalTime = 'Timeout';
         } else {
+            // keep two decimals
             totalTime = totalTime.toFixed(2);
         }
 
@@ -225,6 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
             totalTime: totalTime
         };
 
+        // create leader board and show
         fetch('/leaderboard', {
             method: 'POST',
             headers: {
@@ -236,10 +267,10 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(data => {
             let leaderboard = data.leaderboard;
 
-            // 对 leaderboard 数组进行排序，按照成绩降序排列
+            // sort the leaderboard array in descending order of grades
             leaderboard.sort((a, b) => b.score - a.score);
 
-            // 生成表格的 HTML
+            // generate the HTML for the table
             let leaderboardHTML = `
                 <h3>Leaderboard</h3>
                 <table>
@@ -250,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </tr>
             `;
 
-            // 遍历 leaderboard 数组，生成每行数据
+            // iterate through the leaderboard array, generating each row of data
             leaderboard.forEach((entry, index) => {
                 leaderboardHTML += `
                     <tr>
@@ -261,9 +292,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             });
 
-            // 结束表格的 HTML
+            // end the table's HTML
             leaderboardHTML += `</table>`;
 
+            // show the detail about user's score and user can try again the quiz
             const finalScoreHTML = `
                 <h3>You completed all the questions!</h3>
                 <p>You got ${score} right out of ${questions.length}.</p>
@@ -274,6 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             quizContainer.innerHTML = finalScoreHTML;
 
+            // move to quiz initial page
             document.getElementById('try-again').addEventListener('click', () => {
                 quizContainer.innerHTML = `
                     <h3>Welcome to the quiz! Give your name</h3>
@@ -283,6 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('start').addEventListener('click', startQuiz);
             });
         })
+        // avoid throw error
         .catch(error => {
             console.error('Error fetching leaderboard:', error);
             const finalScoreHTML = `
@@ -295,12 +329,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-
     function startQuiz() {
-        currentQuestion = 0; // 重置当前问题的索引
-        score = 0; // 重置分数
-        timeLeft = 20000; // 重置倒计时
-        totalTime = 0; // 重置总时间
+        currentQuestion = 0; // reset the amount of question
+        score = 0; // reset score
+        timeLeft = 20000; // reset time left
+        totalTime = 0; // reset totle time
         userName = document.getElementById('username').value;
         if (userName.trim() !== '') {
             quizContainer.innerHTML = `<p>Welcome to the quiz, ${userName}! Let's start!</p>`;
@@ -310,6 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // start quiz
     document.getElementById('start').addEventListener('click', startQuiz);
 
 });
